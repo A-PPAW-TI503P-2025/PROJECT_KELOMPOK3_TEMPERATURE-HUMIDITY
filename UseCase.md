@@ -1,45 +1,33 @@
 @startuml
-title Use Case Diagram
-title Sistem Informasi Temperature dan Humidity
-title Berbasis Web
-
 left to right direction
-skinparam packageStyle rectangle
+actor "Admin" as admin
+actor "User" as user
+actor "ESP32 (Device)" as device
 
-actor Admin
-actor User
-actor "IoT Device" as IoT
-
-rectangle "Sistem Informasi\nTemperature Humidity" {
-
-  usecase "Login" as UC_Login
-  usecase "Register" as UC_Register
-  usecase "Logout" as UC_Logout
-
-  usecase "Monitoring\nTemperature Humidity" as UC_Monitor
-  usecase "Melihat Data\nHistoris" as UC_History
-  usecase "Kelola Perangkat\nIoT" as UC_IoT
-  usecase "Kelola User" as UC_User
-  usecase "Kirim Data\nSensor" as UC_Send
+rectangle "Sistem Monitoring IoT" {
+  usecase "Login Sistem" as UC1
+  usecase "Input Data Sensor (Suhu/Kelembaban)" as UC2
+  usecase "Lihat Dashboard Monitoring" as UC3
+  usecase "Lihat Riwayat Data (Log)" as UC4
+  usecase "Download Laporan (Excel/PDF)" as UC5
+  usecase "Hapus Riwayat Data" as UC6
+  usecase "Kelola Data User" as UC7
 }
 
-Admin --> UC_Monitor
-Admin --> UC_History
-Admin --> UC_IoT
-Admin --> UC_User
+device --> UC2 : HTTP POST
+user --> UC1
+user --> UC3
+user --> UC4
 
-User --> UC_Monitor
-User --> UC_History
+admin --> UC1
+admin --> UC3
+admin --> UC4
+admin --> UC5
+admin --> UC6
+admin --> UC7
 
-IoT --> UC_Send
-
-' ==== RELASI INCLUDE (WAJIB LOGIN) ====
-UC_Monitor ..> UC_Login : <<include>>
-UC_History ..> UC_Login : <<include>>
-UC_IoT ..> UC_Login : <<include>>
-UC_User ..> UC_Login : <<include>>
-UC_Login ..> UC_Register : <<include>>
-
-UC_Logout ..> UC_Login : <<extend>>
-
+note right of UC2
+  Otomatis oleh alat
+  setiap 5-10 detik
+end note
 @enduml

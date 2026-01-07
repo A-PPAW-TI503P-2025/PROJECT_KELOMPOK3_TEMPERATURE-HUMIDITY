@@ -1,0 +1,30 @@
+@startuml
+node "Lingkungan Ruangan" {
+    [Sensor DHT11] as sensor
+    [ESP32 Microcontroller] as esp
+}
+
+node "Server Side" {
+    component "Node.js Express" as backend
+    database "MySQL Database" as db
+}
+
+node "Client Side" {
+    artifact "React.js Web App" as web
+}
+
+sensor --> esp : Wired (GPIO)
+esp ..> backend : Internet (WiFi) \nHTTP POST JSON
+backend <--> db : SQL Query
+web <..> backend : HTTP GET (JSON)
+
+note right of esp
+  Mengirim data suhu
+  ke server
+end note
+
+note right of web
+  Admin & User memantau
+  lewat Browser (Laptop/HP)
+end note
+@enduml

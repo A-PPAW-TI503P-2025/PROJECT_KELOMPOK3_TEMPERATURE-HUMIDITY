@@ -1,0 +1,43 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "users" as user {
+  *id : INT <<PK>>
+  --
+  username : VARCHAR(50)
+  password : VARCHAR(255)
+  role : ENUM('admin', 'user')
+}
+
+entity "devices" as device {
+  *id : INT <<PK>>
+  --
+  device_name : VARCHAR(50)
+  location : VARCHAR(100)
+  *user_id : INT <<FK>>
+}
+
+entity "sensor_logs" as log {
+  *id : INT <<PK>>
+  --
+  temperature : FLOAT
+  humidity : FLOAT
+  created_at : TIMESTAMP
+  *device_id : INT <<FK>>
+}
+
+' Relasi antar tabel (Ini yang dicari dosen untuk poin FK)
+user ||..|{ device : "memiliki"
+device ||..|{ log : "mengirim data"
+
+note right of user
+  Admin/User yang
+  punya alat
+end note
+
+note right of log
+  Data suhu tersimpan
+  berdasarkan ID alat
+end note
+@enduml

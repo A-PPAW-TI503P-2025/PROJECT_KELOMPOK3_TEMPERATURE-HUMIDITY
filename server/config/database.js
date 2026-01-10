@@ -2,10 +2,10 @@ const mysql = require('mysql2');
 
 const db = mysql.createConnection({
     host: 'localhost',
-    user: 'root',      // Ganti jika user mysql kamu beda
-    password: '',      // Ganti jika ada password
-    database: 'iot_project',
-    port: 3307
+    user: 'root',      
+    password: 'MSidiq',      // Isi dewe
+    port: 3307 ,             // Ganti yen perlu
+    database: 'iot_project'
 });
 
 db.connect((err) => {

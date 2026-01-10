@@ -3,39 +3,99 @@ import axios from 'axios';
 import './App.css';
 
 function App() {
+  // STATE LOGIN
+  const [user, setUser] = useState(null); // Data user yang sedang login
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  // STATE DATA SENSOR
   const [latest, setLatest] = useState({ temperature: 0, humidity: 0 });
   const [history, setHistory] = useState([]);
 
-  // Fungsi ambil data dari Backend
-  const fetchData = async () => {
+  // --- FUNGSI LOGIN ---
+  const handleLogin = async (e) => {
+    e.preventDefault(); // Mencegah reload halaman
     try {
-      // 1. Ambil data terbaru
-      const resLatest = await axios.get('http://localhost:5000/api/sensor/latest');
-      setLatest(resLatest.data);
-
-      // 2. Ambil data history (log)
-      const resHistory = await axios.get('http://localhost:5000/api/sensor/history');
-      setHistory(resHistory.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
+      const res = await axios.post('http://localhost:5000/api/auth/login', {
+        username: usernameInput,
+        password: passwordInput
+      });
+      // Simpan data user ke state
+      setUser(res.data.user);
+      setLoginError("");
+    } catch (err) {
+      setLoginError("Login Gagal! Cek username/password.");
     }
   };
 
-  // Otomatis refresh setiap 3 detik
-  useEffect(() => {
-    fetchData(); // Jalankan pertama kali
-    const interval = setInterval(fetchData, 3000); // Loop 3 detik
-    return () => clearInterval(interval);
-  }, []);
+  // --- FUNGSI LOGOUT ---
+  const handleLogout = () => {
+    setUser(null);
+    setHistory([]);
+  };
 
+  // --- FUNGSI AMBIL DATA (Hanya jalan kalau sudah login) ---
+  useEffect(() => {
+    if (!user) return; // Kalau belum login, stop disini.
+
+    const fetchData = async () => {
+      try {
+        const resLatest = await axios.get('http://localhost:5000/api/sensor/latest');
+        setLatest(resLatest.data);
+        const resHistory = await axios.get('http://localhost:5000/api/sensor/history');
+        setHistory(resHistory.data);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData(); 
+    const interval = setInterval(fetchData, 3000); 
+    return () => clearInterval(interval);
+  }, [user]); // Dijalankan ulang saat 'user' berubah (login)
+
+  
+  // --- TAMPILAN 1: JIKA BELUM LOGIN (FORM LOGIN) ---
+  if (!user) {
+    return (
+      <div className="login-container">
+        <div className="login-box">
+          <h2>🔐 Login Sistem IoT</h2>
+          <form onSubmit={handleLogin}>
+            <input 
+              type="text" 
+              placeholder="Username" 
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+            />
+            <input 
+              type="password" 
+              placeholder="Password" 
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+            />
+            <button type="submit">MASUK</button>
+          </form>
+          {loginError && <p className="error-msg">{loginError}</p>}
+          <p className="hint">Hint: admin/admin123</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- TAMPILAN 2: JIKA SUDAH LOGIN (DASHBOARD) ---
   return (
     <div className="App">
       <div className="header">
-        <h1>Monitoring Suhu & Kelembaban IoT</h1>
-        <p>Status: {latest.temperature > 0 ? "Online" : "Connecting..."}</p>
+        <div className="header-left">
+          <h1>Sistem Monitoring IoT</h1>
+          <p>Halo, <b>{user.username}</b> (Role: {user.role})</p>
+        </div>
+        <button onClick={handleLogout} className="btn-logout">Logout</button>
       </div>
 
-      {/* CARD MONITORING */}
+      {/* DASHBOARD MONITORING */}
       <div className="dashboard">
         <div className="card">
           <h2>Suhu Ruangan</h2>
@@ -47,8 +107,21 @@ function App() {
         </div>
       </div>
 
-      {/* TABEL DATA LOG */}
-      <h3>Riwayat Data (10 Terakhir)</h3>
+      {/* FITUR KHUSUS ADMIN (Sesuai Flowchart/UML) */}
+      {user.role === 'admin' && (
+        <div className="admin-controls">
+          <h3>🛠️ Panel Admin</h3>
+          <button className="btn-danger" onClick={() => alert("Fitur Hapus Data (Demo)")}>
+            Hapus Semua Data Log
+          </button>
+          <button className="btn-primary" onClick={() => alert("Fitur Download Laporan (Demo)")}>
+            Download Laporan PDF
+          </button>
+        </div>
+      )}
+
+      {/* TABEL LOG */}
+      <h3>Riwayat Data Sensor</h3>
       <table>
         <thead>
           <tr>

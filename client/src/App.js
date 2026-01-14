@@ -1,44 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
+import { FaThermometerHalf, FaTint, FaSignOutAlt, FaUserCircle, FaHistory, FaTachometerAlt } from 'react-icons/fa';
 
 function App() {
-  // STATE LOGIN
-  const [user, setUser] = useState(null); // Data user yang sedang login
+  const [user, setUser] = useState(null);
   const [usernameInput, setUsernameInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [roleInput, setRoleInput] = useState("user");
   const [loginError, setLoginError] = useState("");
-
-  // STATE DATA SENSOR
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [latest, setLatest] = useState({ temperature: 0, humidity: 0 });
   const [history, setHistory] = useState([]);
 
-  // --- FUNGSI LOGIN ---
+  // --- LOGIC ---
   const handleLogin = async (e) => {
-    e.preventDefault(); // Mencegah reload halaman
+    e.preventDefault();
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         username: usernameInput,
         password: passwordInput
       });
-      // Simpan data user ke state
       setUser(res.data.user);
       setLoginError("");
     } catch (err) {
-      setLoginError("Login Gagal! Cek username/password.");
+      setLoginError("Login Gagal! Periksa username/password.");
     }
   };
 
-  // --- FUNGSI LOGOUT ---
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('http://localhost:5000/api/auth/register', {
+        username: usernameInput,
+        password: passwordInput,
+        role: roleInput
+      });
+      alert("Registrasi Berhasil! Silakan Login.");
+      setIsRegisterMode(false);
+      setLoginError("");
+    } catch (err) {
+      setLoginError(err.response?.data?.message || "Registrasi Gagal");
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setHistory([]);
   };
 
-  // --- FUNGSI AMBIL DATA (Hanya jalan kalau sudah login) ---
   useEffect(() => {
-    if (!user) return; // Kalau belum login, stop disini.
-
+    if (!user) return;
     const fetchData = async () => {
       try {
         const resLatest = await axios.get('http://localhost:5000/api/sensor/latest');
@@ -49,99 +61,190 @@ function App() {
         console.error("Error fetching data:", error);
       }
     };
-
-    fetchData(); 
-    const interval = setInterval(fetchData, 3000); 
+    fetchData();
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, [user]); // Dijalankan ulang saat 'user' berubah (login)
+  }, [user]);
 
-  
-  // --- TAMPILAN 1: JIKA BELUM LOGIN (FORM LOGIN) ---
+  const handleResetData = async () => {
+    if (window.confirm("Yakin ingin menghapus SEMUA data log? Tindakan ini tidak bisa dibatalkan!")) {
+        try {
+            await axios.delete('http://localhost:5000/api/sensor/clear');
+            alert("Data berhasil dikosongkan.");
+            setHistory([]); // Kosongkan tabel di layar
+            setLatest({ temperature: 0, humidity: 0 }); // Reset kartu
+        } catch (err) {
+            console.error(err);
+            alert("Gagal menghapus data.");
+        }
+    }
+};
+
+const handleDownload = () => {
+    if (history.length === 0) {
+        alert("Tidak ada data untuk diunduh!");
+        return;
+    }
+
+    // 1. Buat Header CSV
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "ID,Suhu,Kelembaban,Waktu\n";
+
+    // 2. Masukkan Data baris per baris
+    history.forEach(row => {
+        const time = new Date(row.created_at).toLocaleString().replace(/,/g, ''); // Hapus koma di format waktu agar aman
+        csvContent += `${row.id},${row.temperature},${row.humidity},${time}\n`;
+    });
+
+    // 3. Buat Link Download Palsu & Klik Otomatis
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "laporan_sensor_iot.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+  // --- TAMPILAN LOGIN  ---
   if (!user) {
     return (
-      <div className="login-container">
-        <div className="login-box">
-          <h2>🔐 Login Sistem IoT</h2>
-          <form onSubmit={handleLogin}>
-            <input 
-              type="text" 
-              placeholder="Username" 
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-            />
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-            />
-            <button type="submit">MASUK</button>
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h2>{isRegisterMode ? "Buat Akun Baru" : "Selamat Datang"}</h2>
+            <p>Sistem Monitoring IoT Terintegrasi</p>
+          </div>
+          
+          <form onSubmit={isRegisterMode ? handleRegister : handleLogin}>
+            <div className="input-group">
+              <input 
+                type="text" 
+                placeholder="Username" 
+                value={usernameInput} 
+                onChange={(e) => setUsernameInput(e.target.value)} 
+                required 
+              />
+            </div>
+            <div className="input-group">
+              <input 
+                type="password" 
+                placeholder="Password" 
+                value={passwordInput} 
+                onChange={(e) => setPasswordInput(e.target.value)} 
+                required 
+              />
+            </div>
+
+            {isRegisterMode && (
+              <div className="input-group">
+                <select value={roleInput} onChange={(e) => setRoleInput(e.target.value)}>
+                  <option value="user">User Staff</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+            )}
+
+            <button type="submit" className="btn-auth">
+              {isRegisterMode ? "Daftar Sekarang" : "Masuk Dashboard"}
+            </button>
           </form>
+
           {loginError && <p className="error-msg">{loginError}</p>}
-          <p className="hint">Hint: admin/admin123</p>
+          
+          <p className="toggle-auth" onClick={() => { setIsRegisterMode(!isRegisterMode); setLoginError(""); }}>
+            {isRegisterMode ? "Sudah punya akun? Login" : "Belum punya akun? Daftar"}
+          </p>
         </div>
       </div>
     );
   }
 
-  // --- TAMPILAN 2: JIKA SUDAH LOGIN (DASHBOARD) ---
+  // --- TAMPILAN DASHBOARD ---
   return (
     <div className="App">
-      <div className="header">
-        <div className="header-left">
-          <h1>Sistem Monitoring IoT</h1>
-          <p>Halo, <b>{user.username}</b> (Role: {user.role})</p>
+      {/* NAVBAR DIATAS */}
+      <nav className="navbar">
+        <div className="nav-brand">
+          <FaTachometerAlt className="nav-icon" />
+          <span>IoT Monitor</span>
         </div>
-        <button onClick={handleLogout} className="btn-logout">Logout</button>
-      </div>
-
-      {/* DASHBOARD MONITORING */}
-      <div className="dashboard">
-        <div className="card">
-          <h2>Suhu Ruangan</h2>
-          <div className="value temp">{latest.temperature}°C</div>
-        </div>
-        <div className="card">
-          <h2>Kelembaban</h2>
-          <div className="value hum">{latest.humidity}%</div>
-        </div>
-      </div>
-
-      {/* FITUR KHUSUS ADMIN (Sesuai Flowchart/UML) */}
-      {user.role === 'admin' && (
-        <div className="admin-controls">
-          <h3>🛠️ Panel Admin</h3>
-          <button className="btn-danger" onClick={() => alert("Fitur Hapus Data (Demo)")}>
-            Hapus Semua Data Log
-          </button>
-          <button className="btn-primary" onClick={() => alert("Fitur Download Laporan (Demo)")}>
-            Download Laporan PDF
+        <div className="nav-menu">
+          <div className="user-info">
+            <FaUserCircle className="user-icon" />
+            <span>Halo, <b>{user.username}</b> ({user.role})</span>
+          </div>
+          <button onClick={handleLogout} className="btn-logout">
+            <FaSignOutAlt /> Keluar
           </button>
         </div>
-      )}
+      </nav>
 
-      {/* TABEL LOG */}
-      <h3>Riwayat Data Sensor</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Suhu</th>
-            <th>Kelembaban</th>
-            <th>Waktu</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history.map((row) => (
-            <tr key={row.id}>
-              <td>{row.id}</td>
-              <td>{row.temperature}°C</td>
-              <td>{row.humidity}%</td>
-              <td>{new Date(row.created_at).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* KONTEN UTAMA */}
+      <div className="main-content">
+        
+        {/* SECTION STATISTIK */}
+        <div className="stats-grid">
+          {/* Kartu Suhu */}
+          <div className="stat-card temp-card">
+            <div className="card-icon"><FaThermometerHalf /></div>
+            <div className="card-info">
+              <h3>Suhu Ruangan</h3>
+              <div className="value">{latest.temperature}°C</div>
+              <p className="status">Status: {latest.temperature > 30 ? "Panas" : "Normal"}</p>
+            </div>
+          </div>
+
+          {/* Kartu Kelembaban */}
+          <div className="stat-card hum-card">
+            <div className="card-icon"><FaTint /></div>
+            <div className="card-info">
+              <h3>Kelembaban</h3>
+              <div className="value">{latest.humidity}%</div>
+              <p className="status">Udara: {latest.humidity > 70 ? "Basah" : "Kering"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION ADMIN CONTROL */}
+        {user.role === 'admin' && (
+          <div className="admin-panel">
+            <h3>🛠️ Kontrol Admin</h3>
+            <div className="admin-actions">
+              <button className="btn-action danger" onClick={handleResetData}>Reset Data Log </button>
+              <button className="btn-action primary" onClick={handleDownload}>Download Data (CSV) </button>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION TABEL */}
+        <div className="table-container">
+          <div className="table-header">
+            <h3><FaHistory /> Riwayat Data Sensor</h3>
+          </div>
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>ID Log</th>
+                <th>Suhu (°C)</th>
+                <th>Kelembaban (%)</th>
+                <th>Waktu Pencatatan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.id}>
+                  <td>#{row.id}</td>
+                  <td style={{ color: '#e74c3c', fontWeight: 'bold' }}>{row.temperature}°</td>
+                  <td style={{ color: '#3498db', fontWeight: 'bold' }}>{row.humidity}%</td>
+                  <td>{new Date(row.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
     </div>
   );
 }

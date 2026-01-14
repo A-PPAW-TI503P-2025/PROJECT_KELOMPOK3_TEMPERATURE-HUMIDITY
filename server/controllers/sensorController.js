@@ -36,3 +36,12 @@ exports.getHistory = (req, res) => {
         res.json(results);
     });
 };
+
+exports.clearLogs = (req, res) => {
+    const sql = "TRUNCATE TABLE sensor_logs"; // TRUNCATE = Hapus semua isi tabel & reset ID
+    
+    db.query(sql, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Semua data log berhasil dihapus!" });
+    });
+};

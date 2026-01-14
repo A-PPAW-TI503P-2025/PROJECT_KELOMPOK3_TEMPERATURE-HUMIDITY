@@ -38,3 +38,25 @@ exports.login = (req, res) => {
         });
     });
 };
+
+exports.register = (req, res) => {
+    const { username, password, role } = req.body;
+
+    // Cek apakah username sudah ada?
+    const checkSql = "SELECT * FROM users WHERE username = ?";
+    db.query(checkSql, [username], (err, result) => {
+        if (result.length > 0) {
+            return res.status(400).json({ message: "Username sudah dipakai!" });
+        }
+
+        // Jika belum ada, masukkan ke database
+        // Default role 'user' jika tidak dipilih
+        const sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";
+        const userRole = role || 'user'; 
+
+        db.query(sql, [username, password, userRole], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: "Registrasi Berhasil! Silakan Login." });
+        });
+    });
+};
